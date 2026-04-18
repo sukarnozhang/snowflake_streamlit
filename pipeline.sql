@@ -89,6 +89,8 @@ FROM SNOWFLAKE_LEARNING_DB.PUBLIC.landing_table;
 -- 11. Monitor parsing progress
 SELECT COUNT(*) FROM SNOWFLAKE_LEARNING_DB.PUBLIC.parsed_docs;
 
+SELECT * FROM SNOWFLAKE_LEARNING_DB.PUBLIC.parsed_docs;
+
 -- 12. Verify parsed output structure
 SELECT
     file_name,
@@ -102,6 +104,7 @@ LIMIT 5;
 -- ============================================
 
 -- 13. Create task to auto-process new PDFs when stream has data
+-- control by WHERE METADATA$ACTION = 'INSERT';
 CREATE OR REPLACE TASK SNOWFLAKE_LEARNING_DB.PUBLIC.llm_task
     WAREHOUSE = COMPUTE_WH
     SCHEDULE = '1 MINUTE'
