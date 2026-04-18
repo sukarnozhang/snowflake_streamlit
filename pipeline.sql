@@ -124,6 +124,15 @@ AS
 -- 14. Resume task
 ALTER TASK SNOWFLAKE_LEARNING_DB.PUBLIC.llm_task RESUME;
 
+SHOW TASKS IN DATABASE SNOWFLAKE_LEARNING_DB;
+
+SELECT *
+FROM TABLE(SNOWFLAKE.INFORMATION_SCHEMA.TASK_HISTORY(
+    TASK_NAME => 'llm_task'
+))
+ORDER BY SCHEDULED_TIME DESC
+LIMIT 10;
+
 -- ============================================
 -- CHUNKING
 -- ============================================
@@ -135,8 +144,7 @@ CREATE OR REPLACE TABLE SNOWFLAKE_LEARNING_DB.PUBLIC.chunked_docs (
     chunk_text STRING
 );
 
--- 16. Chunk markdown text using recursive character splitting
--- 512 token chunks with 50 token overlap to preserve context across boundaries
+-- 16. Chunk but filter out short/noise chunks
 INSERT INTO SNOWFLAKE_LEARNING_DB.PUBLIC.chunked_docs (file_name, chunk_index, chunk_text)
 SELECT
     file_name,
@@ -150,10 +158,9 @@ LATERAL FLATTEN(
         512,
         50
     )
-) c;
+) c
+WHERE LEN(c.value::STRING) > 150;  -- filter out short noise chunks
 
--- 17. Verify chunk count
-SELECT COUNT(*) FROM SNOWFLAKE_LEARNING_DB.PUBLIC.chunked_docs;
 
 -- 18. Preview chunks
 SELECT
@@ -169,6 +176,7 @@ LIMIT 100;
 -- ============================================
 
 -- 19. Create Cortex Search Service for semantic retrieval
+--It's the search engine on top of your chunks.
 CREATE OR REPLACE CORTEX SEARCH SERVICE SNOWFLAKE_LEARNING_DB.PUBLIC.cardiology_search
     ON chunk_text
     ATTRIBUTES file_name, chunk_index
@@ -183,7 +191,18 @@ CREATE OR REPLACE CORTEX SEARCH SERVICE SNOWFLAKE_LEARNING_DB.PUBLIC.cardiology_
     );
 
 -- 20. Verify search service was created
-SHOW CORTEX SEARCH SERVICES;
+SHOW CORTEX SEARCH SERVICES IN DATABASE SNOWFLAKE_LEARNING_DB;
+
+SELECT PARSE_JSON(
+    SNOWFLAKE.CORTEX.SEARCH_PREVIEW(
+        'cardiology_search',
+        '{
+            "query": "membrane",
+            "columns": ["file_name", "chunk_index", "chunk_text"],
+            "limit": 5
+        }'
+    )
+)['results'] AS results;
 
 -- 21. Sanity check query against the search service
 SELECT PARSE_JSON(
