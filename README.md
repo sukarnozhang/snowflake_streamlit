@@ -112,10 +112,3 @@ Medical literature has variable structure — abstracts, methodology sections, a
 **Why a geriatrician as master agent?**
 Geriatricians specialise in multi-morbidity — patients with overlapping conditions across cardiology, nephrology, pharmacology, and more. This makes the geriatrician a clinically accurate orchestration metaphor, not just a technical convenience.
 
----
-
-## 👤 Author
-
-**Max Sukarno** — Data Engineer  
-[LinkedIn](https://www.linkedin.com/in/sukarno/) · [GitHub](https://github.com/sukarnozhang)  
-Melbourne, Australia
