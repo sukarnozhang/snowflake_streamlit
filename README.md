@@ -17,11 +17,11 @@ The cardiology agent is a fully functional RAG pipeline built natively on Snowfl
 ## 🏗️ Architecture
 
 ```
-Azure Blob Storage (PDFs)
+Azure Blob Storage (PDFs - as external stage)
         ↓
   Snowpipe (auto-ingest)
         ↓
-  Landing Table + Stream
+  Landing Stage (PAPER_FROM_BLOB2 as Snowflake internal stage)
         ↓
   AI_PARSE_DOCUMENT (Cortex)
         ↓
