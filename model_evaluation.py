@@ -1,6 +1,6 @@
 import json
 import os
-import re
+import importlib
 import snowflake.connector
 from ragas import evaluate
 from ragas.metrics import Faithfulness, AnswerRelevancy, ContextRecall, ContextPrecision
@@ -10,37 +10,26 @@ from langchain_anthropic import ChatAnthropic
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from langchain_huggingface import HuggingFaceEmbeddings
 
-
 embeddings = LangchainEmbeddingsWrapper(
     HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 )
 
-import config  # ← credentials live here, never in this file
-
-# ── LLM setup ────────────────────────────────────────────────ipe any cached value
+import config
 importlib.reload(config)
 ANTHROPIC_API_KEY = config.ANTHROPIC_API_KEY
 
-print("ANTHROPIC_API_KEY")
+print("ANTHROPIC_API_KEY loaded")
 
 llm = LangchainLLMWrapper(
     ChatAnthropic(
         model="claude-haiku-4-5-20251001",
-        api_key=config.ANTHROPIC_API_KEY  # ← pass it explicitly
+        api_key=config.ANTHROPIC_API_KEY
     )
 )
 
 # ── Snowflake connection ──────────────────────────────────────
 conn = snowflake.connector.connect(**config.SNOWFLAKE)
 cursor = conn.cursor()
-
-# ── SQL string sanitiser ──────────────────────────────────────
-def safe_sql(text: str) -> str:
-    """Escape text for safe embedding inside a Snowflake SQL string literal."""
-    text = text.replace("'", "''")           # escape single quotes
-    text = text.replace("\\", "\\\\")        # escape backslashes
-    text = re.sub(r"[\x00-\x1f]", " ", text) # strip control characters
-    return text
 
 # ── Test cases ────────────────────────────────────────────────
 test_cases = [
@@ -97,16 +86,16 @@ for case in test_cases:
     print(f"\n🔍 Running: {question[:60]}...")
 
     # Step 1: Retrieve chunks from Cortex Search
-    search_sql = f"""
-    SELECT PARSE_JSON(
-        SNOWFLAKE.CORTEX.SEARCH_PREVIEW(
-            'cardiology_search',
-            '{{"query": "{safe_sql(question)}", "columns": ["file_name", "chunk_index", "chunk_text"], "limit": 5}}'
-        )
-    )['results'] AS results
-    """
+    search_payload = json.dumps({
+        "query": question,
+        "columns": ["file_name", "chunk_index", "chunk_text"],
+        "limit": 5
+    })
     try:
-        cursor.execute(search_sql)
+        cursor.execute(
+            "SELECT PARSE_JSON(SNOWFLAKE.CORTEX.SEARCH_PREVIEW('cardiology_search', %s))['results'] AS results",
+            (search_payload,)
+        )
         row = cursor.fetchone()
         chunks = json.loads(row[0]) if row and row[0] else []
     except Exception as e:
@@ -117,33 +106,31 @@ for case in test_cases:
     context_str = "\n\n".join(contexts)[:3000]
 
     # Step 2: Generate answer via Cortex COMPLETE
-    # Build the full prompt in Python first — avoids Snowflake SQL parser
-    # choking on multi-line concatenated string literals
     prompt = (
         "You are a cardiology research assistant. "
         "Answer using ONLY the context provided. "
         "If the context lacks sufficient information, say so explicitly. "
         "Cite the source paper where possible.\n\n"
         f"Question: {question}\n\n"
-        f"Context:\n{context_str[:3000]}\n\n"
+        f"Context:\n{context_str}\n\n"
         "Answer concisely."
     )
-    llm_sql = "SELECT SNOWFLAKE.CORTEX.COMPLETE('mistral-large', %s) AS answer"
     try:
-        cursor.execute(llm_sql, (prompt,))
+        cursor.execute(
+            "SELECT SNOWFLAKE.CORTEX.COMPLETE('mistral-large', %s) AS answer",
+            (prompt,)
+        )
         ai_answer = cursor.fetchone()[0]
     except Exception as e:
         print(f"  ⚠️  LLM call failed: {e}")
         ai_answer = "Error generating answer."
 
-    results.append(
-        {
-            "question": question,
-            "answer": ai_answer,
-            "contexts": contexts,
-            "ground_truth": case["ground_truth"],
-        }
-    )
+    results.append({
+        "question": question,
+        "answer": ai_answer,
+        "contexts": contexts,
+        "ground_truth": case["ground_truth"],
+    })
     print(f"  ✅ Done — {len(contexts)} chunks retrieved")
 
 # ── Evaluate with RAGAS ───────────────────────────────────────
