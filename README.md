@@ -64,13 +64,17 @@ Streamlit UI (query interface hosted on Snowflake)
 ---
 
 ## 📁 Repository Structure
-├── pipeline.sql              # End-to-end pipeline: ingestion → parsing → chunking → search service
-├── streamlit_app.py          # Streamlit query interface with paper filtering, model selection, and LLM synthesis
-├── requirements.txt          # Python dependencies for local development
-├── config.example.py         # Example credentials file — copy to config.py and fill in values
+
+```
+├── pipeline.sql          # End-to-end pipeline: ingestion → parsing → chunking → search service
+├── streamlit_app.py      # Streamlit query interface with paper filtering, model selection, LLM synthesis
+├── requirements.txt      # Python dependencies
+├── config.example.py     # Credentials template — copy to config.py and fill in values
 ├── evaluation/
-│   └── ragas_eval.py         # RAGAS evaluation: faithfulness, answer relevancy, context precision/recall
+│   ├── ragas_eval.py     # RAGAS evaluation script
+│   └── eval_results.json # Evaluation output
 └── README.md
+```
 
 ---
 
