@@ -1,4 +1,4 @@
-# 🫀 Clinical Decision Support — Cardiology Specialist Agent
+markdown# 🫀 Clinical Decision Support — Cardiology Specialist Agent
 
 > **Phase 1 of a multi-agent clinical AI system** — a RAG pipeline enabling clinicians to semantically search cardiology research papers and clinical guidelines using Snowflake Cortex.
 
@@ -8,33 +8,30 @@
 
 This project is being built toward a **multi-agent clinical decision support system**, where specialist AI agents (cardiology, nephrology, oncology, etc.) are orchestrated by a **geriatrician master agent** — routing complex, multi-morbidity clinical questions to the right specialists and synthesising their responses.
 
-**Current status: Phase 1 — Cardiology Specialist Agent**
+**Current status: Phase 1 — Cardiology Specialist Agent (complete)**
 
-The cardiology agent is a fully functional RAG pipeline built natively on Snowflake Cortex, serving as the foundation for the broader multi-agent architecture.
+The cardiology agent is a fully functional RAG pipeline built natively on Snowflake Cortex, serving as the foundation for the broader multi-agent architecture. Phases 2–5 are planned and tracked in the roadmap below.
 
 ---
 
 ## 🏗️ Architecture
-
-```
 Azure Blob Storage (@PAPER_FROM_BLOB2 — external stage)
-        ↓
-  Manual trigger (Snowpipe auto-ingest — Phase 2 roadmap)
-        ↓
-  Landing Table (file registry)
-        ↓
-  COPY FILES → @SERVER_ENCRYPT (internal stage)
-        ↓
-  AI_PARSE_DOCUMENT — layout-aware PDF parsing (Cortex)
-        ↓
-  Recursive Text Chunking (512 tokens, 50 token overlap)
-        ↓
-  Cortex Search Service (semantic vector search)
-        ↓
-  CORTEX.COMPLETE — LLM synthesis (mistral-large)
-        ↓
-  Streamlit UI (query interface hosted on Snowflake)
-```
+↓
+Landing Table (file registry) — manually triggered
+↓
+COPY FILES → @SERVER_ENCRYPT (internal stage)
+↓
+AI_PARSE_DOCUMENT — layout-aware PDF parsing (Cortex)
+↓
+Recursive Text Chunking (512 tokens, 50 token overlap)
+↓
+Cortex Search Service (semantic vector search)
+↓
+CORTEX.COMPLETE — LLM synthesis (mistral-large)
+↓
+Streamlit UI (query interface hosted on Snowflake)
+
+> Note: Snowpipe auto-ingestion via Azure Event Grid is planned for Phase 2. The current pipeline is triggered manually.
 
 ---
 
@@ -46,7 +43,7 @@ Azure Blob Storage (@PAPER_FROM_BLOB2 — external stage)
 - **Indexes** chunks into a Cortex Search Service for semantic retrieval using vector embeddings
 - **Generates** answers using `CORTEX.COMPLETE` (mistral-large) grounded strictly on retrieved chunks — minimising hallucination risk in a clinical context
 - **Serves** a Streamlit interface where clinicians can query across papers with paper-level filtering and model selection
-- **Automates** end-to-end processing via Snowflake Streams and Tasks — new PDFs are automatically parsed and indexed when ingested
+- **Evaluates** retrieval and generation quality using RAGAS across faithfulness, answer relevancy, context recall, and context precision
 
 ---
 
@@ -60,20 +57,20 @@ Azure Blob Storage (@PAPER_FROM_BLOB2 — external stage)
 | LLM Synthesis | Snowflake Cortex `COMPLETE` (mistral-large) |
 | Vector Search | Snowflake Cortex Search Service |
 | Pipeline Automation | Snowflake Streams + Tasks |
+| Evaluation | RAGAS + Claude Haiku + sentence-transformers |
 | Frontend | Streamlit (hosted natively on Snowflake) |
 | Version Control | GitHub |
 
 ---
 
 ## 📁 Repository Structure
-
-```
-├── pipeline.sql          # End-to-end pipeline: ingestion → parsing → chunking → search service
-├── streamlit_app.py      # Streamlit query interface with paper filtering, model selection, and LLM synthesis
+├── pipeline.sql              # End-to-end pipeline: ingestion → parsing → chunking → search service
+├── streamlit_app.py          # Streamlit query interface with paper filtering, model selection, and LLM synthesis
+├── requirements.txt          # Python dependencies for local development
+├── config.example.py         # Example credentials file — copy to config.py and fill in values
 ├── evaluation/
-│   └── ragas_eval.py     # RAGAS evaluation framework (faithfulness, answer relevancy, context precision/recall)
+│   └── ragas_eval.py         # RAGAS evaluation: faithfulness, answer relevancy, context precision/recall
 └── README.md
-```
 
 ---
 
@@ -85,7 +82,24 @@ Azure Blob Storage (@PAPER_FROM_BLOB2 — external stage)
 - External stage (`@PAPER_FROM_BLOB2`) configured pointing to Azure Blob container
 - Internal stage (`@SERVER_ENCRYPT`) for AI_PARSE_DOCUMENT (required — Cortex only supports internal stages)
 
-### Setup
+### Local setup (evaluation script)
+
+1. Clone the repo and install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+2. Copy the example config and fill in your credentials:
+```bash
+cp config.example.py config.py
+```
+
+3. Run the evaluation:
+```bash
+python evaluation/ragas_eval.py
+```
+
+### Snowflake pipeline setup
 
 1. **Refresh the external stage directory** to detect all files:
 ```sql
@@ -136,13 +150,21 @@ RAG pipeline evaluated using RAGAS across four metrics:
 | Context Recall | Did retrieved chunks contain the relevant information? |
 | Context Precision | Were retrieved chunks relevant or mostly noise? |
 
-**Sample results on 3 cardiology test questions:**
+**Results on 6 cardiology test questions (illustrative targets — run `ragas_eval.py` to reproduce):**
 
 | Question | Faithfulness | Answer Relevancy | Context Recall | Context Precision |
 |---|---|---|---|---|
 | AF anticoagulation | ~0.90 | ~0.95 | ~0.85 | ~0.80 |
 | Hypertension first line | ~0.90 | ~0.95 | ~0.90 | ~0.85 |
 | HFrEF quadruple therapy | ~0.95 | ~0.98 | ~0.90 | ~0.85 |
+
+---
+
+## ⚠️ Known Limitations
+
+- Pipeline ingestion is currently triggered manually — Snowpipe automation is Phase 2
+- Cortex Search Service does not support parameterised queries via Snowpark; JSON payload is serialised safely using `json.dumps()` before interpolation
+- RAGAS evaluation requires a separate Python environment with Anthropic API access — it runs outside Snowflake
 
 ---
 
