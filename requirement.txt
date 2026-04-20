@@ -1,0 +1,9 @@
+snowflake-snowpark-python
+snowflake-connector-python
+streamlit
+ragas
+datasets
+langchain-anthropic
+langchain-huggingface
+sentence-transformers
+anthropic
