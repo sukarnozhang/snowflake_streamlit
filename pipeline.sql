@@ -2,6 +2,11 @@
 -- CARDIOLOGY SPECIALIST AGENT
 -- RAG Pipeline on Snowflake Cortex
 -- ============================================
+-- HOW TO RUN:
+-- Execute each section sequentially in a Snowflake worksheet.
+-- Prerequisites: @PAPER_FROM_BLOB2 (external Azure stage) and
+--                @SERVER_ENCRYPT (internal stage) must exist.
+-- ============================================
 
 -- 0. Check existing stages (to make sure STAGE PAPER_FROM_BLOB2 exists. It's used to keep pdf from Azure)
 SHOW STAGES IN DATABASE SNOWFLAKE_LEARNING_DB;
@@ -176,7 +181,7 @@ LIMIT 100;
 -- ============================================
 
 -- 19. Create Cortex Search Service for semantic retrieval
---It's the search engine on top of your chunks.
+-- It's the search engine on top of your chunks.
 CREATE OR REPLACE CORTEX SEARCH SERVICE SNOWFLAKE_LEARNING_DB.PUBLIC.cardiology_search
     ON chunk_text
     ATTRIBUTES file_name, chunk_index
