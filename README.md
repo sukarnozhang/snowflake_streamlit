@@ -15,6 +15,7 @@ The cardiology agent is a fully functional RAG pipeline built natively on Snowfl
 ---
 
 ## 🏗️ Architecture
+```
 Azure Blob Storage (@PAPER_FROM_BLOB2 — external stage)
 ↓
 Landing Table (file registry) — manually triggered
@@ -30,6 +31,7 @@ Cortex Search Service (semantic vector search)
 CORTEX.COMPLETE — LLM synthesis (mistral-large)
 ↓
 Streamlit UI (query interface hosted on Snowflake)
+```
 
 > Note: Snowpipe auto-ingestion via Azure Event Grid is planned for Phase 2. The current pipeline is triggered manually.
 
