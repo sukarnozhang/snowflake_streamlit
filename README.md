@@ -1,4 +1,4 @@
-markdown# 🫀 Clinical Decision Support — Cardiology Specialist Agent
+🫀 Clinical Decision Support — Cardiology Specialist Agent
 
 > **Phase 1 of a multi-agent clinical AI system** — a RAG pipeline enabling clinicians to semantically search cardiology research papers and clinical guidelines using Snowflake Cortex.
 
